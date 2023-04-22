@@ -1,11 +1,12 @@
 #include <iostream>
 #include <fstream>
-#include<set>
+#include <set>
+#include <list>
 
 using Atom = int;
 using Literal = int;
 using Clause = std::set<Literal>;
-using NormalForm = std::set<Clause>;
+using NormalForm = std::list<Clause>;
 
 NormalForm readCNF(std::istream& inputStream, unsigned& atomCount) {
     std::string buffer;
@@ -32,7 +33,7 @@ NormalForm readCNF(std::istream& inputStream, unsigned& atomCount) {
             c.insert(l);
             inputStream >> l;
         }
-        formula.insert(c);
+        formula.push_back(c);
     }
     return formula;
 }
@@ -60,17 +61,42 @@ NormalForm::iterator& remove_tautology_clause(NormalForm& f, NormalForm::iterato
 }
 
 
-void propagation_literal(NormalForm& f,  Literal& l) {
+void unit_propagation(NormalForm& f,  Clause& c) {
     auto it = f.begin();
+    Literal l =  c.extract(c.begin()).value();
     while (it != f.end()) {
         if((*it).find(l) != (*it).end()) {
-            it=f.erase(it);
+            printf("elementi pre 1:\n");
+            print(f);
+            it = f.erase(it);
+            if(f.size() == 0)
+                return;
+            printf("elementi posle 1:\n");
+            print(f);
         } else if((*it).find(-l) != (*it).end()) {
             (*it).erase((*it).find(-l));
             ++it;
+            printf("elementi 2:\n");
+            print(f);
+        } else {
+            ++it;
+            printf("elementi 3:\n");
+            print(f);
         }
+        
     }
+    printf("ok1");
 
+}
+
+void pure_literal(NormalForm& f, const Literal& l) {
+    auto it = f.begin();
+    while(it != f.end()) {
+        if((*it).find(l) != (*it).end()){
+            (*it).erase((*it).find(l));
+        }
+        ++it;
+    }
 }
 
 bool davis_putnam (NormalForm& cnf) {
@@ -80,21 +106,51 @@ bool davis_putnam (NormalForm& cnf) {
          it=remove_tautology_clause(cnf, it);
 
     }
-
+printf("pre unit_propagation\n");
+print(cnf);
     //propagacija jedinicnih klauza
     it = cnf.begin();
+    int num_translation;
     while(it != cnf.end()) {
         if((*it).size() == 1){
-            const auto p = (*it).cbegin();
-            propagation_literal(cnf, (*it).extract(p).value());
+            //printf("ok");
+            Clause c = *it;
+            it = cnf.erase(it);
+            unit_propagation(cnf, c);
+        } else {
+            it++;
+        }
+        
     }
 
 
 
-    //eliminacija cistih lierala
+    //eliminacija cistih literala
+    it = cnf.begin();
+    std::set<Literal> tmp;
+    while(it != cnf.end()) {
+        auto it1=(*it).begin();
+        while(it1 != (*it).end()) {
+            tmp.insert(*it1);
+            ++it1;
+        }
+        ++it;
+    }
+
+    it = cnf.begin();
+    while(it != cnf.end()) {
+        auto it1=(*it).begin();
+        while(it1 != (*it).end()) {
+            if(tmp.find(-(*it1)) == tmp.end())
+                pure_literal(cnf, (*it1));
+            it1++;
+        }
+        ++it;
+    }
 
     //eliminacija promenljive-rezolucija
 
+    printf("kraj:\n");
 
     print(cnf);
 
@@ -112,4 +168,3 @@ int main() {
 
     return 0;
 }
-
