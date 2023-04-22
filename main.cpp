@@ -60,19 +60,18 @@ NormalForm::iterator& remove_tautology_clause(NormalForm& f, NormalForm::iterato
 }
 
 
-void propagation_literal(NormalForm& f, Literal& l) {
+void propagation_literal(NormalForm& f,  Literal& l) {
     auto it = f.begin();
     while (it != f.end()) {
         if((*it).find(l) != (*it).end()) {
             it=f.erase(it);
         } else if((*it).find(-l) != (*it).end()) {
-            (*it).erase(-l);
+            (*it).erase((*it).find(-l));
             ++it;
         }
     }
 
 }
-
 
 bool davis_putnam (NormalForm& cnf) {
     auto it = cnf.begin();
@@ -85,8 +84,9 @@ bool davis_putnam (NormalForm& cnf) {
     //propagacija jedinicnih klauza
     it = cnf.begin();
     while(it != cnf.end()) {
-        if((*it).size() == 1)
-            propagation_literal(cnf, (*it).extract().value());
+        if((*it).size() == 1){
+            const auto p = (*it).cbegin();
+            propagation_literal(cnf, (*it).extract(p).value());
     }
 
 
