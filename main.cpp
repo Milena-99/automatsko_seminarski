@@ -1,11 +1,11 @@
 #include <iostream>
 #include <fstream>
-#include<list>
+#include<set>
 
 using Atom = int;
 using Literal = int;
-using Clause = std::list<Literal>;
-using NormalForm = std::list<Clause>;
+using Clause = std::set<Literal>;
+using NormalForm = std::set<Clause>;
 
 NormalForm readCNF(std::istream& inputStream, unsigned& atomCount) {
     std::string buffer;
@@ -29,17 +29,17 @@ NormalForm readCNF(std::istream& inputStream, unsigned& atomCount) {
         Literal l;
         inputStream >> l;
         while(l != 0) {
-            c.push_back(l);
+            c.insert(l);
             inputStream >> l;
         }
-        formula.push_back(c);
+        formula.insert(c);
     }
     return formula;
 }
 
 void print(NormalForm& f) {
-    for(Clause& c : f){
-        for(Literal& l : c){
+    for(auto c : f){
+        for(auto l : c){
             std::cout << l << " ";
         }
         std::cout << "\n";
@@ -49,7 +49,7 @@ void print(NormalForm& f) {
 
 NormalForm::iterator& remove_tautology_clause(NormalForm& f, NormalForm::iterator& pos_clause) {
     for(Literal l : *pos_clause){
-        for(Literal &l1 : *pos_clause) {
+        for(auto l1 : (*pos_clause)) {
             if(l + l1 == 0){
                pos_clause = f.erase(pos_clause);
                return pos_clause;
@@ -58,21 +58,45 @@ NormalForm::iterator& remove_tautology_clause(NormalForm& f, NormalForm::iterato
     }
     return ++pos_clause;
 }
+
+
+void propagation_literal(NormalForm& f, Literal& l) {
+    auto it = f.begin();
+    while (it != f.end()) {
+        if((*it).find(l) != (*it).end()) {
+            it=f.erase(it);
+        } else if((*it).find(-l) != (*it).end()) {
+            (*it).erase(-l);
+            ++it;
+        }
+    }
+
+}
+
+
 bool davis_putnam (NormalForm& cnf) {
     auto it = cnf.begin();
     while(it != cnf.end()) {
         // brisanje tautologicnih klauza
-         it=remove_tautology_clause(cnf,it);
+         it=remove_tautology_clause(cnf, it);
 
-        //propagacija jedinicnih klauza
+    }
 
-        //eliminacija cistih lierala
+    //propagacija jedinicnih klauza
+    it = cnf.begin();
+    while(it != cnf.end()) {
+        if((*it).size() == 1)
+            propagation_literal(cnf, (*it).extract().value());
+    }
 
-       //eliminacija promenljive-rezolucija
 
 
-   }
-     print(cnf);
+    //eliminacija cistih lierala
+
+    //eliminacija promenljive-rezolucija
+
+
+    print(cnf);
 
     return true;
 }
