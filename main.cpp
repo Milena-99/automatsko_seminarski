@@ -88,6 +88,7 @@ void unit_propagation(NormalForm& f,  Clause& c) {
     printf("ok1");
 
 }
+S
 
 template <typename T>
 void delta_razlika(std::set<T>& A, std::set<T>& B) {
