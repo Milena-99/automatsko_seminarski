@@ -89,13 +89,47 @@ void unit_propagation(NormalForm& f,  Clause& c) {
 
 }
 
-void pure_literal(NormalForm& f, const Literal& l) {
-    auto it = f.begin();
+template <typename T>
+void delta_razlika(std::set<T>& A, std::set<T>& B) {
+	auto it = A.begin();
+	while(it != A.end()) {
+		if(B.erase(-(*it))) it = A.erase(it);
+		else it++;
+	}
+	
+	it = B.begin();
+	while(it != B.end()) {
+		if(A.erase(-(*it))) it = B.erase(it);
+		else it++;
+	}
+	
+	A.merge(B);	
+}
+
+void pure_literal(NormalForm& cnf, const Literal& l) {
+   /* auto it = f.begin();
     while(it != f.end()) {
         if((*it).find(l) != (*it).end()){
             (*it).erase((*it).find(l));
         }
         ++it;
+    }
+    */
+    
+   std::set<Literal> tmp1;
+    std::set<Literal> tmp2;
+    
+    for(const auto& C : cnf) {
+    	for(const auto& L : C) {
+    		if(L > 0) tmp1.insert(L);
+    		else tmp2.insert(L);
+    	}
+    }
+    
+    delta_razlika<Literal>(tmp1, tmp2);
+    
+    for(const auto& L : tmp1) {
+    	std::erase_if(cnf, [L](std::set<Literal>& C) {return C.find(L) != C.end();});
     }
 }
 
