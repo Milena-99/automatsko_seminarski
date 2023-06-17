@@ -2,7 +2,11 @@
 #include <fstream>
 #include <set>
 #include <list>
+#include <cstdlib>
 
+
+//Impelemnatacija DP procedure za iskaznu logiku
+//
 using Atom = int;
 using Literal = int;
 using Clause = std::set<Literal>;
@@ -66,29 +70,29 @@ void unit_propagation(NormalForm& f,  Clause& c) {
     Literal l =  c.extract(c.begin()).value();
     while (it != f.end()) {
         if((*it).find(l) != (*it).end()) {
-            printf("elementi pre 1:\n");
-            print(f);
+          //  printf("elementi pre 1:\n");
+          //  print(f);
             it = f.erase(it);
             if(f.size() == 0)
                 return;
-            printf("elementi posle 1:\n");
-            print(f);
+          //  printf("elementi posle 1:\n");
+          //  print(f);
         } else if((*it).find(-l) != (*it).end()) {
             (*it).erase((*it).find(-l));
             ++it;
-            printf("elementi 2:\n");
-            print(f);
+          //  printf("elementi 2:\n");
+          //  print(f);
         } else {
             ++it;
-            printf("elementi 3:\n");
-            print(f);
+           // printf("elementi 3:\n");
+          //  print(f);
         }
         
     }
-    printf("ok1");
+   // printf("ok1");
 
 }
-S
+
 
 template <typename T>
 void delta_razlika(std::set<T>& A, std::set<T>& B) {
@@ -134,6 +138,33 @@ void pure_literal(NormalForm& cnf, const Literal& l) {
     }
 }
 
+bool clauseTautology(Clause& c) {
+	auto it = c.begin();
+	while(it != c.end()) {
+		if(c.find(-(*it)) != c.end())
+			return true;
+	}
+	return false;
+
+}
+
+bool resolveClauses(NormalForm& f, Clause& c1, Clause& c2, Literal l) {
+    bool change = false;
+    Clause r;
+    for(const auto& literal : c1)
+        if(literal != l)
+	    r.insert(literal);
+    for(const auto& literal : c2)
+	if(literal != -l)
+            r.insert(literal);
+
+    if(!clauseTautology(r)) {
+        change = true;
+        f.push_back(r);
+    }
+    return change;
+}
+
 bool davis_putnam (NormalForm& cnf) {
     auto it = cnf.begin();
     while(it != cnf.end()) {
@@ -143,7 +174,8 @@ bool davis_putnam (NormalForm& cnf) {
     }
 printf("pre unit_propagation\n");
 print(cnf);
-    //propagacija jedinicnih klauza
+   while(cnf.size() != 0) {
+      //propagacija jedinicnih klauza
     it = cnf.begin();
     int num_translation;
     while(it != cnf.end()) {
@@ -182,9 +214,44 @@ print(cnf);
         }
         ++it;
     }
-
+    //izlazak
+    if(cnf.size() == 0)
+	    return true;
+    it = cnf.begin();
+    while(it != cnf.end()) {
+	    if((*it).empty())
+		    return false;
+    	    it++;
+    }
     //eliminacija promenljive-rezolucija
+    std::set<Clause> tmp1;
+    std::set<Clause> tmp2;
+    it = cnf.begin();
+    Literal l =*((*it).begin());
+    for(auto it1 = cnf.begin(); it1 != cnf.end(); it++)
+	    if((*it).find(l) != (*it).end())
+		    tmp1.insert(*it1);
+    	    else if((*it).find(-l) != (*it).end())
+		    tmp2.insert(*it1);
 
+    auto it2 = tmp1.begin();
+    while(it2 != tmp1.end()) {
+    	auto it1 = tmp2.begin();
+	while(it1 != tmp2.end()){
+		resolveClauses(cnf, *it2, *it1, l);
+		it1++;
+	}
+	it2++;
+    }
+
+    it = cnf.begin();
+    while(it != cnf.end()){
+    	if((*it).find(l) != (*it).end() || (*it).find(-l) != (*it).end())
+		it = cnf.erase(it);
+	else 
+		it++;
+    }
+   }
     printf("kraj:\n");
 
     print(cnf);
