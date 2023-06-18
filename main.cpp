@@ -3,7 +3,7 @@
 #include <set>
 #include <list>
 #include <cstdlib>
-
+#include <vector>
 
 //Impelemnatacija DP procedure za iskaznu logiku
 //
@@ -69,86 +69,34 @@ void unit_propagation(NormalForm& f,  Clause& c) {
     auto it = f.begin();
     Literal l =  c.extract(c.begin()).value();
     while (it != f.end()) {
-        if((*it).find(l) != (*it).end()) {
-          //  printf("elementi pre 1:\n");
-          //  print(f);
+        if(it->find(l) != it->end()) {
             it = f.erase(it);
-            if(f.size() == 0)
+            if(f.empty())
                 return;
-          //  printf("elementi posle 1:\n");
-          //  print(f);
-        } else if((*it).find(-l) != (*it).end()) {
-            (*it).erase((*it).find(-l));
+        } else if(it->find(-l) != it->end()) {
+            it->erase(it->find(-l));
             ++it;
-          //  printf("elementi 2:\n");
-          //  print(f);
         } else {
             ++it;
-           // printf("elementi 3:\n");
-          //  print(f);
         }
         
     }
-   // printf("ok1");
 
 }
 
-
-template <typename T>
-void delta_razlika(std::set<T>& A, std::set<T>& B) {
-	auto it = A.begin();
-	while(it != A.end()) {
-		if(B.erase(-(*it))) it = A.erase(it);
-		else it++;
-	}
-	
-	it = B.begin();
-	while(it != B.end()) {
-		if(A.erase(-(*it))) it = B.erase(it);
-		else it++;
-	}
-	
-	A.merge(B);	
-}
-
-void pure_literal(NormalForm& cnf, const Literal& l) {
-   /* auto it = f.begin();
-    while(it != f.end()) {
-        if((*it).find(l) != (*it).end()){
-            (*it).erase((*it).find(l));
-        }
-        ++it;
-    }
-    */
-    
-   std::set<Literal> tmp1;
-    std::set<Literal> tmp2;
-    
-    for(const auto& C : cnf) {
-    	for(const auto& L : C) {
-    		if(L > 0) tmp1.insert(L);
-    		else tmp2.insert(L);
-    	}
-    }
-    
-    delta_razlika<Literal>(tmp1, tmp2);
-    
-    for(const auto& L : tmp1) {
-    	std::erase_if(cnf, [L](std::set<Literal>& C) {return C.find(L) != C.end();});
-    }
-}
 
 bool clauseTautology(Clause& c) {
 	auto it = c.begin();
 	while(it != c.end()) {
 		if(c.find(-(*it)) != c.end())
 			return true;
+		++it;
 	}
 	return false;
 
 }
 
-bool resolveClauses(NormalForm& f, Clause& c1, Clause& c2, Literal l) {
+bool resolveClauses(NormalForm& f, const Clause& c1, const Clause& c2, Literal l) {
     bool change = false;
     Clause r;
     for(const auto& literal : c1)
@@ -162,111 +110,188 @@ bool resolveClauses(NormalForm& f, Clause& c1, Clause& c2, Literal l) {
         change = true;
         f.push_back(r);
     }
+    
     return change;
+}
+
+
+
+bool pureLiteralClauses(NormalForm& f, const Clause& c1, Literal l) {
+    bool change = false;
+    Clause r;
+    for(const auto& literal : c1)
+        if(literal != l)
+            r.insert(literal);
+
+    if(!clauseTautology(r)) {
+        change = true;
+        f.push_back(r);
+    }
+
+    return change;
+}
+
+std::vector<Literal> findPureLiterals(const NormalForm& formula) {
+    std::set<Literal> positiveLiterals;
+    std::set<Literal> negativeLiterals;
+
+    // Prolazimo kroz sve klauze u formuli i beležimo literale
+    for (const Clause& clause : formula) {
+        for (Literal literal : clause) {
+            if (literal > 0) {
+                positiveLiterals.insert(literal);
+            } else {
+                negativeLiterals.insert(-literal);
+            }
+        }
+    }
+
+    std::vector<Literal> pureLiterals;
+
+    // Pronalazimo čiste litrele
+    for (Literal literal : positiveLiterals) {
+        if (negativeLiterals.count(literal) == 0) {
+            pureLiterals.push_back(literal);
+        }
+    }
+
+    for (Literal literal : negativeLiterals) {
+        if (positiveLiterals.count(literal) == 0) {
+            pureLiterals.push_back(-literal);
+        }
+    }
+
+    return pureLiterals;
 }
 
 bool davis_putnam (NormalForm& cnf) {
     auto it = cnf.begin();
     while(it != cnf.end()) {
-        // brisanje tautologicnih klauza
-         it=remove_tautology_clause(cnf, it);
+         it = remove_tautology_clause(cnf, it);
 
     }
-printf("pre unit_propagation\n");
-print(cnf);
-   while(cnf.size() != 0) {
-      //propagacija jedinicnih klauza
-    it = cnf.begin();
-    int num_translation;
-    while(it != cnf.end()) {
-        if((*it).size() == 1){
-            //printf("ok");
-            Clause c = *it;
-            it = cnf.erase(it);
-            unit_propagation(cnf, c);
-        } else {
-            it++;
+    printf("pre unit_propagation\n");
+    print(cnf);
+    while(!cnf.empty()) {
+      //propagacija jedinicnih klauze
+        it = cnf.begin();
+        while(it != cnf.end()) {
+            if(it->size() == 1) {
+                Clause c = *it;
+                it = cnf.erase(it);
+                unit_propagation(cnf, c);
+                it = cnf.begin();
+            } else {
+                ++it;
+            }
+            
+        }
+	
+	//pure literal
+	std::vector<Literal> allLiteral =  findPureLiterals(cnf);
+	auto itPure = allLiteral.begin();
+	while(itPure != allLiteral.end()) {
+		auto itc = cnf.begin();
+		while (itc != cnf.end()) {
+			pureLiteralClauses(cnf, *itc, *itPure);
+			itc++;
+		}
+		itPure++;
+	}
+
+	itPure = allLiteral.begin();	
+	while(itPure != allLiteral.end()) {
+                auto itc = cnf.begin();
+                while (itc != cnf.end()) {
+                	if((*itc).find(*itPure) != (*itc).end())
+				cnf.erase(itc);
+			else
+				itc++;
+                }
+                itPure++;
+        }
+
+        //izlazak
+        if(cnf.empty())
+            return true;
+        it = cnf.begin();
+        while(it != cnf.end()) {
+            if(it->empty())
+                return false;
+                ++it;
         }
         
-    }
-
-
-
-    //eliminacija cistih literala
-    it = cnf.begin();
-    std::set<Literal> tmp;
-    while(it != cnf.end()) {
-        auto it1=(*it).begin();
-        while(it1 != (*it).end()) {
-            tmp.insert(*it1);
-            ++it1;
+        it = cnf.begin();
+        Literal l = *(it->begin());
+        std::cout << "Literal koji eliminisemo: " << l << '\n';
+        std::list<std::list<Clause>::iterator> tmp1, tmp2;
+        
+        for(; it != cnf.end(); ++it) {
+            if(it->find(l) != it->end())
+                tmp1.push_back(it);
+            else if(it->find(-l) != it->end())
+                tmp2.push_back(it);
+            
         }
-        ++it;
-    }
-
-    it = cnf.begin();
-    while(it != cnf.end()) {
-        auto it1=(*it).begin();
-        while(it1 != (*it).end()) {
-            if(tmp.find(-(*it1)) == tmp.end())
-                pure_literal(cnf, (*it1));
-            it1++;
+        
+        // sada se setamo po oba
+        for(const auto& it1 : tmp1) {
+            for(const auto& it2 : tmp2) {
+                resolveClauses(cnf, *it1, *it2, l);
+            }
         }
-        ++it;
-    }
-    //izlazak
-    if(cnf.size() == 0)
-	    return true;
-    it = cnf.begin();
-    while(it != cnf.end()) {
-	    if((*it).empty())
-		    return false;
-    	    it++;
-    }
-    //eliminacija promenljive-rezolucija
-    std::set<Clause> tmp1;
-    std::set<Clause> tmp2;
-    it = cnf.begin();
-    Literal l =*((*it).begin());
-    for(auto it1 = cnf.begin(); it1 != cnf.end(); it++)
-	    if((*it).find(l) != (*it).end())
-		    tmp1.insert(*it1);
-    	    else if((*it).find(-l) != (*it).end())
-		    tmp2.insert(*it1);
 
-    auto it2 = tmp1.begin();
-    while(it2 != tmp1.end()) {
-    	auto it1 = tmp2.begin();
-	while(it1 != tmp2.end()){
-		resolveClauses(cnf, *it2, *it1, l);
-		it1++;
-	}
-	it2++;
+        std::cout << "tmp1\n";
+        for(const auto& it1 : tmp1) {
+            for(const auto& l : *it1) {
+                std::cout << l << " ";
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+        std::cout << "tmp2\n";
+        for(const auto& it1 : tmp2) {
+            for(const auto& l : *it1) {
+                std::cout << l << " ";
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+
+        for(auto& it1 : tmp1) {
+            cnf.erase(it1);
+        }
+        
+        for(auto& it2 : tmp2) {
+            cnf.erase(it2);
+        }
+        
+        std::cout << '\n';
+        std::cout << "cnf\n";
+        for(const auto& clause : cnf) {
+            for(const auto& l : clause) {
+                std::cout << l << " ";
+            }
+            std::cout << '\n';
+        }
+   
+   
     }
-
-    it = cnf.begin();
-    while(it != cnf.end()){
-    	if((*it).find(l) != (*it).end() || (*it).find(-l) != (*it).end())
-		it = cnf.erase(it);
-	else 
-		it++;
-    }
-   }
-    printf("kraj:\n");
-
-    print(cnf);
-
     return true;
 }
 
 
-
-int main() {
+int main(int argc, char *argv[]) {
     std::ifstream infile;
-    infile.open("in.txt");
+    if(argc < 2) {
+	    printf("Program se poziva:\n ./izvrsni ulaz.txt\n");
+    	    return -1;
+    }
+    infile.open(argv[1]);
     unsigned atomCount;
     NormalForm cnf = readCNF(infile, atomCount);
     bool val = davis_putnam(cnf);
+    std::cout << "Formula je: " << val << '\n';
 
     return 0;
 }
