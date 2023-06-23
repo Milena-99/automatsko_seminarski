@@ -115,23 +115,7 @@ bool resolveClauses(NormalForm& f, const Clause& c1, const Clause& c2, Literal l
 }
 
 
-
-bool pureLiteralClauses(NormalForm& f, const Clause& c1, Literal l) {
-    bool change = false;
-    Clause r;
-    for(const auto& literal : c1)
-        if(literal != l)
-            r.insert(literal);
-
-    if(!clauseTautology(r)) {
-        change = true;
-        f.push_back(r);
-    }
-
-    return change;
-}
-
-std::vector<Literal> findPureLiterals(const NormalForm& formula) {
+std::set<Literal> findPureLiterals(const NormalForm& formula) {
     std::set<Literal> positiveLiterals;
     std::set<Literal> negativeLiterals;
 
@@ -146,18 +130,18 @@ std::vector<Literal> findPureLiterals(const NormalForm& formula) {
         }
     }
 
-    std::vector<Literal> pureLiterals;
+    std::set<Literal> pureLiterals;
 
     // Pronalazimo čiste litrele
     for (Literal literal : positiveLiterals) {
         if (negativeLiterals.count(literal) == 0) {
-            pureLiterals.push_back(literal);
+            pureLiterals.insert(literal);
         }
     }
 
     for (Literal literal : negativeLiterals) {
         if (positiveLiterals.count(literal) == 0) {
-            pureLiterals.push_back(-literal);
+            pureLiterals.insert(literal);
         }
     }
 
@@ -170,9 +154,10 @@ bool davis_putnam (NormalForm& cnf) {
          it = remove_tautology_clause(cnf, it);
 
     }
-    printf("pre unit_propagation\n");
+    printf("posle brisanja tautologicnih klauza\n");
     print(cnf);
-    while(!cnf.empty()) {
+    int i = 1;
+    while(true) {
       //propagacija jedinicnih klauze
         it = cnf.begin();
         while(it != cnf.end()) {
@@ -188,37 +173,38 @@ bool davis_putnam (NormalForm& cnf) {
         }
 	
 	//pure literal
-	std::vector<Literal> allLiteral =  findPureLiterals(cnf);
-	auto itPure = allLiteral.begin();
-	while(itPure != allLiteral.end()) {
-		auto itc = cnf.begin();
-		while (itc != cnf.end()) {
-			pureLiteralClauses(cnf, *itc, *itPure);
-			itc++;
+	std::set<Literal> allLiteral =  findPureLiterals(cnf);
+	auto itPureClause = cnf.begin();
+	bool ind = false;
+       	while(itPureClause != cnf.end()) {
+		auto itC = (*itPureClause).begin();
+		ind = 0;
+		while (itC != (*itPureClause).end()) {
+			if(allLiteral.find(*itC) != allLiteral.end()) {
+				itPureClause = cnf.erase(itPureClause);
+				ind = true;
+				break;
+			} 
+
+			itC++;
 		}
-		itPure++;
+		if (!ind)
+			itPureClause++;	
+
 	}
 
-	itPure = allLiteral.begin();	
-	while(itPure != allLiteral.end()) {
-                auto itc = cnf.begin();
-                while (itc != cnf.end()) {
-                	if((*itc).find(*itPure) != (*itc).end())
-				cnf.erase(itc);
-			else
-				itc++;
-                }
-                itPure++;
-        }
-
         //izlazak
-        if(cnf.empty())
-            return true;
+        if(cnf.empty()) {
+            std::cout << "U koraku: " << i << " SAT\n";
+	    return true;
+	}
         it = cnf.begin();
         while(it != cnf.end()) {
-            if(it->empty())
-                return false;
-                ++it;
+            if(it->empty()) {
+             	std::cout << "U koraku: " << i << " UNSAT\n";      
+		return false;
+	     }
+	    it++;
         }
         
         it = cnf.begin();
@@ -240,24 +226,6 @@ bool davis_putnam (NormalForm& cnf) {
                 resolveClauses(cnf, *it1, *it2, l);
             }
         }
-
-        std::cout << "tmp1\n";
-        for(const auto& it1 : tmp1) {
-            for(const auto& l : *it1) {
-                std::cout << l << " ";
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-        std::cout << "tmp2\n";
-        for(const auto& it1 : tmp2) {
-            for(const auto& l : *it1) {
-                std::cout << l << " ";
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-
         for(auto& it1 : tmp1) {
             cnf.erase(it1);
         }
@@ -266,15 +234,9 @@ bool davis_putnam (NormalForm& cnf) {
             cnf.erase(it2);
         }
         
-        std::cout << '\n';
-        std::cout << "cnf\n";
-        for(const auto& clause : cnf) {
-            for(const auto& l : clause) {
-                std::cout << l << " ";
-            }
-            std::cout << '\n';
-        }
-   
+        std::cout << "korak:" << i  << "\n";
+	i++;
+  	print(cnf); 
    
     }
     return true;
