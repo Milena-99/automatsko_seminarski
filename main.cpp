@@ -154,7 +154,7 @@ bool davis_putnam (NormalForm& cnf) {
          it = remove_tautology_clause(cnf, it);
 
     }
-    printf("posle brisanja tautologicnih klauza\n");
+    std::cout << "posle brisanja tautologicnih klauza\n";
     print(cnf);
     int i = 1;
     while(true) {
@@ -246,7 +246,7 @@ bool davis_putnam (NormalForm& cnf) {
 int main(int argc, char *argv[]) {
     std::ifstream infile;
     if(argc < 2) {
-	    printf("Program se poziva:\n ./izvrsni ulaz.txt\n");
+	    std::cout << "Program se poziva:\n ./izvrsni ulaz.txt\n";
     	    return -1;
     }
     infile.open(argv[1]);
